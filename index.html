@@ -101,8 +101,43 @@
 
             const saveToCSV = () => {
                 const now = new Date();
-                const csvRow = `${now.toISOString()},${score},${severity.level}`;
-                setShowCopyText(csvRow);
+                const timestamp = now.toISOString();
+                
+                // Create CSV header and data rows
+                const csvRows = [
+                    ['Date', 'Question', 'Response', 'Score'].join(','),
+                    // Add timestamp only in first row
+                    [timestamp, questions[0], options[answers[0]].label, answers[0]].join(','),
+                    // Rest of questions without timestamp
+                    ...questions.slice(1).map((q, i) => [
+                        '',  // empty timestamp field
+                        q.replace(/,/g, ';'),
+                        options[answers[i + 1]].label,
+                        answers[i + 1]
+                    ].join(',')),
+                    // Summary row
+                    ['', 'TOTAL', severity.level, score].join(',')
+                ];
+
+                const csvContent = csvRows.join('\n');
+                
+                // Try to download (will work on desktop/some mobile browsers)
+                try {
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `phq9-results-${timestamp.replace(/[:.]/g, '-')}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.log('Download not supported');
+                }
+
+                // Always show copyable text as fallback
+                setShowCopyText(csvContent);
             };
 
             if (submitted) {
@@ -118,13 +153,18 @@
                         </div>
                         {showCopyText && (
                             <div className="mb-4 p-4 bg-gray-100 rounded-lg">
-                                <p className="text-sm mb-2 font-bold">Copy this text to save your results:</p>
+                                <p className="text-sm mb-2">
+                                    <span className="font-bold">Desktop users:</span> Your results should download automatically as a CSV file.
+                                </p>
+                                <p className="text-sm mb-2">
+                                    <span className="font-bold">Mobile users:</span> Copy the text below to save your results:
+                                </p>
                                 <textarea 
                                     className="w-full p-2 border rounded text-sm font-mono"
                                     value={showCopyText}
                                     readOnly
                                     onClick={e => e.target.select()}
-                                    rows={2}
+                                    rows={12}
                                 />
                             </div>
                         )}
